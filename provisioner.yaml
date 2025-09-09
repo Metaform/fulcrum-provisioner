@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: provisioner
+  namespace: fulcrum-core
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: namespace-patcher
+rules:
+  - apiGroups: [ "","apps","networking.k8s.io" ]
+    resources: [ "namespaces","pods","services","configmaps","deployments","ingresses" ]
+    verbs: [ "get", "patch", "update", "delete", "create" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: namespace-patcher-binding
+subjects:
+  - kind: ServiceAccount
+    name: provisioner
+    namespace: fulcrum-core
+roleRef:
+  kind: ClusterRole
+  name: namespace-patcher
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: provisioner-token
+  namespace: fulcrum-core
+type: Opaque
+data:
+  token: WTNqNDRQcE1iM0V0WWppVWpvdnJqMWNnY0FpeWRQSWFvY1FjcmpMUnVxUT0=
+
+# Create using:
+# kubectl create secret generic provisioner-token \
+#   --namespace=fulcrum-core \
+#   --from-literal=token=WTNqNDRQcE1iM0V0WWppVWpvdnJqMWNnY0FpeWRQSWFvY1FjcmpMUnVxUT0=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-provisioner
+  namespace: fulcrum-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-provisioner
+  template:
+    metadata:
+      labels:
+        app: go-provisioner
+    spec:
+      serviceAccountName: provisioner
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - env:
+              - name: FULCRUM
+                value: "http://core-api-lb.fulcrum-core.svc.cluster.local:3000"
+              - name: TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: provisioner-token
+                    key: token
+          name: go-provisioner
+          image: ghcr.io/paullatzelsperger/go-provisioner:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9999
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-provisioner
+  namespace: fulcrum-core
+spec:
+  selector:
+    app: go-provisioner
+  ports:
+    - protocol: TCP
+      port: 9999
+      targetPort: 9999
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: go-provisioner
+  namespace: fulcrum-core
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /provisioner(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: go-provisioner
+                port:
+                  number: 9999

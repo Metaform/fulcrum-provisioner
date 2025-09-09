@@ -1,0 +1,781 @@
+{
+	"info": {
+		"_postman_id": "5fe3accf-02dd-4675-88f2-82d77706b136",
+		"name": "Fulcrum Core API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "647585"
+	},
+	"item": [
+		{
+			"name": "Seeding",
+			"item": [
+				{
+					"name": "Create Service Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"SERVICE_TYPE_ID\", id);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"Service Type ID is set\", function(){",
+									"    pm.expect(pm.environment.get(\"SERVICE_TYPE_ID\")).not.to.be.undefined",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"edc-aio\",\n  \"name\": \"EDC All-in-one deployment\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/service-types",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"service-types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Agent Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"AGENT_TYPE_ID\", id);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"Agent ID is set\", function(){",
+									"    pm.expect(pm.environment.get(\"AGENT_TYPE_ID\")).not.to.be.undefined",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"go-provisioner-agent\",\n  \"serviceTypeIds\": [\"{{SERVICE_TYPE_ID}}\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/agent-types",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"agent-types"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Provisioner Onboarding",
+			"item": [
+				{
+					"name": "Create Participant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"    pm.expect(responseJson).to.have.property('status');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"PROVIDER_ID\", id);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"Provider ID is set\", function(){",
+									"    pm.expect(pm.environment.get(\"PROVIDER_ID\")).not.to.be.undefined",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Participant\",\n  \"status\": \"Enabled\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/participants",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"participants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Service Group",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"SERVICE_GROUP_ID\", id);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"Service Group ID is set\", function(){",
+									"    pm.expect(pm.environment.get(\"SERVICE_GROUP_ID\")).not.to.be.undefined",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"EDC services group\",\n  \"consumerId\": \"{{PROVIDER_ID}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/service-groups",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"service-groups"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Agent",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"AGENT_ID\", id);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"Agent ID is set\", function(){",
+									"    pm.expect(pm.environment.get(\"AGENT_ID\")).not.to.be.undefined",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"test-agent\",\n  \"status\": \"connected\",\n  \"providerId\": \"{{PROVIDER_ID}}\",\n  \"agentTypeId\": \"{{AGENT_TYPE_ID}}\",\n  \"tags\": [\n    \"cfm\"\n  ],\n  \"configuration\": {\n    \"anim_0\": true,\n    \"exercitation_3f4\": true,\n    \"ind9\": \"ad voluptate est incidid\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/agents",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"agents"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Agent Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"    pm.expect(responseJson).to.have.property('value');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"AGENT_TOKEN\", responseJson.value);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"Agent Token is set\", function(){",
+									"    pm.expect(pm.environment.get(\"AGENT_TOKEN\")).not.to.be.undefined",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"API Access Token\",\n  \"role\": \"agent\",\n  \"expireAt\": \"2025-12-31T23:59:59Z\",\n  \"scopeId\": \"{{AGENT_ID}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/tokens",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Jobs",
+			"item": [
+				{
+					"name": "Create Service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"",
+									"    const id = responseJson.id;",
+									"    pm.environment.set(\"SERVICE_ID\", id);",
+									"}",
+									"",
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.expect(pm.response.code == 201).to.be.true",
+									"});",
+									"",
+									"pm.test(\"Service ID is not null\", function() {",
+									"    pm.expect(pm.environment.get(\"SERVICE_ID\")).to.not.be.null;",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"EDC Deployment Opiquad-02\",\n  \"serviceTypeId\": \"{{SERVICE_TYPE_ID}}\",\n  \"groupId\": \"{{SERVICE_GROUP_ID}}\",\n  \"properties\": {\n    \"participantName\": \"opiquad04\",\n    \"participantDid\": \"did:web:identityhub.opiquad04.svc.cluster.local%3A7083:opiquad04\",\n    \"kubehost\": \"192.168.1.202\"\n  },\n  \"agentTags\": [\n    \"cfm\", \"edc\"\n  ],\n  \"agentId\": \"{{AGENT_ID}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/services",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"services"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer change-me"
+							}
+						],
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/services/{{SERVICE_ID}}",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"services",
+								"{{SERVICE_ID}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Jobs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code < 300 && pm.response.code >= 200) {",
+									"    const responseJson = pm.response.json()[0];",
+									"    pm.expect(responseJson).to.have.property('id');",
+									"",
+									"    pm.environment.set(\"JOB_ID\", responseJson.id);",
+									"}",
+									"",
+									"pm.test(\"Status code is >=200 and <300\", function () {",
+									"    pm.expect(pm.response.code < 300 && pm.response.code >= 200).to.be.true",
+									"});",
+									"pm.test(\"JOB_ID is set\", function(){",
+									"    pm.expect(pm.environment.get(\"JOB_ID\")).not.to.be.undefined",
+									"})",
+									"",
+									"pm.test(\"Job status is not Failed\", function(){",
+									"    pm.expect(pm.response.json().status).not.to.equal(\"Failed\")",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "Bearer {{AGENT_TOKEN}}",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "Authorization",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/jobs/pending",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"jobs",
+								"pending"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List jobs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/jobs",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"jobs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Claim Job",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204\", function () {",
+									"    pm.expect(pm.response.code == 204).to.be.true",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "Bearer {{AGENT_TOKEN}}",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "Authorization",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/jobs/{{JOB_ID}}/claim",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"jobs",
+								"{{JOB_ID}}",
+								"claim"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Finalize Job",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204\", function () {",
+									"    pm.expect(pm.response.code == 204).to.be.true",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "apikey",
+							"apikey": [
+								{
+									"key": "value",
+									"value": "Bearer {{AGENT_TOKEN}}",
+									"type": "string"
+								},
+								{
+									"key": "key",
+									"value": "Authorization",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"externalId\": \"foo bar external id {{$randomAlphaNumeric}}\",\n  \"resources\": {\n    \"anim_1b\": 92524790,\n    \"incididuntbf7\": -36344170.50693739,\n    \"id_e\": 39052611.908578604\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{FULCRUM_CORE_HOST}}/api/v1/jobs/{{JOB_ID}}/complete",
+							"host": [
+								"{{FULCRUM_CORE_HOST}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"jobs",
+								"{{JOB_ID}}",
+								"complete"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "Bearer change-me",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "Authorization",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
