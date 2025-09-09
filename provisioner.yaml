@@ -63,7 +63,7 @@ spec:
         - name: ghcr-secret
       containers:
         - env:
-              - name: FULCRUM
+              - name: FULCRUM_CORE
                 value: "http://core-api-lb.fulcrum-core.svc.cluster.local:3000"
               - name: TOKEN
                 valueFrom:

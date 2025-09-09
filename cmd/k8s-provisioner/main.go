@@ -32,7 +32,7 @@ import (
 type CLI struct {
 	KubeConfig  string `help:"Path to KubeConfig file" env:"KUBECONFIG" default:"~/.kube/config"`
 	Token       string `help:"Fulcrum Core API agent Token" env:"TOKEN"`
-	FulcrumCore string `help:"Fulcrum Core API Host" env:"FULCRUM"`
+	FulcrumCore string `help:"Fulcrum Core API Host" env:"FULCRUM_CORE"`
 }
 
 func main() {
@@ -82,7 +82,11 @@ func main() {
 	provisioningAgent := provisioner.NewProvisioningAgent(ctx, kubeClient)
 
 	// Start periodic health check
-	if cli.Token != "" && cli.FulcrumCore != "" {
+	if cli.Token == "" {
+		fmt.Printf("No Fulcrum Agent token was supplied, will skip periodic checking")
+	} else if cli.FulcrumCore == "" {
+		fmt.Printf("No Fulcrum Core API endpoint was supplied, will skip periodic checking")
+	} else {
 		apiClient := clients.NewFulcrumApiClient(cli.FulcrumCore, cli.Token)
 
 		go func() {
@@ -99,8 +103,6 @@ func main() {
 			}
 		}()
 		fmt.Println("Start polling Fulcrum Core at " + cli.FulcrumCore)
-	} else {
-		fmt.Printf("No Fulcrum Agent token and/or host address was supplied, will skip periodic checking")
 	}
 
 	app := fiber.New()
