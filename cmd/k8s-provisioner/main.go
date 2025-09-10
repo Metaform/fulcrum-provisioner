@@ -305,5 +305,7 @@ func createAgent(name string, apiClient clients.FulcrumApi, receptacle *store.Ag
 	receptacle.ProviderId = participantId
 	receptacle.AgentTypeId = agentTypeId
 	receptacle.Name = name
+	receptacle.ServiceTypeId = serviceTypeId
+	receptacle.ServiceGroupId = serviceGroupId
 	return nil
 }
