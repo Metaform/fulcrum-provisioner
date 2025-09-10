@@ -8,6 +8,7 @@ import (
 	identity "k8s-provisioner/clients/identity"
 	mgmt "k8s-provisioner/clients/management"
 	"k8s-provisioner/internal/model"
+	"log"
 	"strings"
 )
 
@@ -37,11 +38,11 @@ func IdentityHubData(definition model.ParticipantDefinition) {
 
 	participant, err := identityApi.CreateParticipant(body)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	if participant == nil {
-		fmt.Println("participant already exists")
+		log.Println("participant already exists")
 		return
 	}
 
@@ -65,8 +66,8 @@ func IdentityHubData(definition model.ParticipantDefinition) {
 
 	_, err = mgmtApi.CreateSecret(secretBody)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
-	fmt.Println("participant created")
+	log.Println("participant created")
 }

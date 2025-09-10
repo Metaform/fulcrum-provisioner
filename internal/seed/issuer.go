@@ -2,10 +2,10 @@ package seed
 
 import (
 	"encoding/base64"
-	"fmt"
 	"k8s-provisioner/clients/config"
 	"k8s-provisioner/clients/issuer"
 	"k8s-provisioner/internal/model"
+	"log"
 )
 
 func IssuerData(definition model.ParticipantDefinition) {
@@ -22,8 +22,8 @@ func IssuerData(definition model.ParticipantDefinition) {
 
 	err := issuerApi.CreateHolder(definition.Did, definition.Did, definition.ParticipantName)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
-	fmt.Println("issuer account created for participant ", definition.ParticipantName)
+	log.Println("issuer account created for participant ", definition.ParticipantName)
 }

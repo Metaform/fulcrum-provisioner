@@ -1,9 +1,9 @@
 package server
 
 import (
-	"fmt"
 	"k8s-provisioner/internal/model"
 	"k8s-provisioner/internal/provisioner"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,7 +17,7 @@ func CreateResource(provisioningAgent provisioner.ProvisioningAgent, onDeploymen
 			return err
 		}
 
-		fmt.Println("Creating resources")
+		log.Println("Creating resources")
 		mergedResources, err2 := provisioningAgent.CreateResources(definition, onDeploymentReady)
 		if err2 != nil {
 			return err2
@@ -34,7 +34,7 @@ func DeleteResource(provisioningAgent provisioner.ProvisioningAgent) func(c *fib
 		if err := c.BodyParser(&request); err != nil {
 			return err
 		}
-		fmt.Println("Deleting resources")
+		log.Println("Deleting resources")
 		mergedResources, err2 := provisioningAgent.DeleteResources(request)
 		if err2 != nil {
 			return err2

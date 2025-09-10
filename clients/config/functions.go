@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -33,7 +34,7 @@ func SendRequest(client *http.Client, apiKey string, body string, url string) (s
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			fmt.Printf("Error closing response body: %v\n", err)
+			log.Printf("Error closing response body: %v\n", err)
 		}
 	}(resp.Body)
 
@@ -42,7 +43,7 @@ func SendRequest(client *http.Client, apiKey string, body string, url string) (s
 		return "", err
 	}
 	if resp.StatusCode != 409 && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
-		fmt.Println("Error sending request: ", resp.Status, " ", string(response))
+		log.Println("Error sending request: ", resp.Status, " ", string(response))
 		return "", fmt.Errorf("error sending request: %s", resp.Status)
 	}
 	return string(response), nil

@@ -46,20 +46,20 @@ func main() {
 	if cli.KubeConfig == "" {
 		exists = false
 	} else if _, err := os.Stat(cli.KubeConfig); errors.Is(err, os.ErrNotExist) {
-		fmt.Printf("kubeconfig file %s does not exist, falling back to in-cluster config\n", cli.KubeConfig)
+		log.Printf("kubeconfig file %s does not exist, falling back to in-cluster config\n", cli.KubeConfig)
 		exists = false
 	}
 	if exists {
 
 		// Load kubeconfig (or use in-cluster if applicable)
-		fmt.Println("Load kubeconfig from ", cli.KubeConfig, "")
+		log.Println("Load kubeconfig from ", cli.KubeConfig, "")
 		cfg, err := clientcmd.BuildConfigFromFlags("", cli.KubeConfig)
 		if err != nil {
 			log.Fatalf("load kubeconfig: %v", err)
 		}
 		konfig = cfg
 	} else {
-		fmt.Println("No kubeconfig provided, using in-cluster config", "")
+		log.Println("No kubeconfig provided, using in-cluster config", "")
 		cfg, err := rest.InClusterConfig()
 		if err != nil {
 			log.Fatalf("load in-cluster config: %v", err)
@@ -82,7 +82,7 @@ func main() {
 
 	// Start periodic health check
 	if cli.FulcrumCore == "" {
-		fmt.Printf("No Fulcrum Core API endpoint was supplied, will skip periodic checking")
+		log.Printf("No Fulcrum Core API endpoint was supplied, will skip periodic checking")
 	} else {
 		apiClient := clients.NewFulcrumApiClient(cli.FulcrumCore)
 		token, seedError := seedFulcrumCore(apiClient)
@@ -106,7 +106,7 @@ func main() {
 				}
 			}
 		}()
-		fmt.Println("Start polling Fulcrum Core at " + cli.FulcrumCore)
+		log.Println("Start polling Fulcrum Core at " + cli.FulcrumCore)
 	}
 
 	app := fiber.New()
@@ -122,7 +122,7 @@ func main() {
 		}
 	}()
 	<-ctx.Done()
-	fmt.Println("\nGracefully shutting down...")
+	log.Println("\nGracefully shutting down...")
 	_ = app.Shutdown()
 }
 
@@ -130,11 +130,11 @@ func pollFulcrum(apiClient clients.FulcrumApi, agentToken string, agent provisio
 
 	jobs, err := apiClient.GetPendingJobs(agentToken)
 	if err != nil {
-		fmt.Printf("Error getting pending jobs: %s\n", err)
+		log.Printf("Error getting pending jobs: %s\n", err)
 		return
 	}
 	if len(jobs) > 0 {
-		fmt.Println("Got " + strconv.Itoa(len(jobs)) + " pending jobs")
+		log.Println("Got " + strconv.Itoa(len(jobs)) + " pending jobs")
 	}
 
 	for _, job := range jobs {
@@ -145,9 +145,9 @@ func pollFulcrum(apiClient clients.FulcrumApi, agentToken string, agent provisio
 				KubernetesIngressHost: fmt.Sprintf("%v", job.Service.Properties["kubeHost"]),
 			}
 			e := apiClient.ClaimJob(agentToken, job.Id)
-			fmt.Printf("Claimed job %s (\"%s\"), Action = %s\n", job.Id, job.Service.Name, job.Action)
+			log.Printf("Claimed job %s (\"%s\"), Action = %s\n", job.Id, job.Service.Name, job.Action)
 			if e != nil {
-				fmt.Printf("Error claiming job: %s", e)
+				log.Printf("Error claiming job: %s", e)
 			}
 
 			if job.Action == "Create" {
@@ -155,45 +155,45 @@ func pollFulcrum(apiClient clients.FulcrumApi, agentToken string, agent provisio
 					onDeploymentReady(definition)
 					e = apiClient.FinalizeJob(agentToken, job.Id)
 					if e != nil {
-						fmt.Printf("Error finalizing job: %s\n", e)
+						log.Printf("Error finalizing job: %s\n", e)
 					} else {
-						fmt.Printf("Finalized job: %s\n", job.Id)
+						log.Printf("Finalized job: %s\n", job.Id)
 					}
 				})
 				if provisioningError != nil {
-					fmt.Printf("Error creating resources: %s\n", provisioningError)
+					log.Printf("Error creating resources: %s\n", provisioningError)
 					return
 				}
 			} else if job.Action == "Delete" {
 				_, provisioningErr := agent.DeleteResources(def)
 				if provisioningErr != nil {
-					fmt.Printf("Error creating resources: %s\n", provisioningErr)
+					log.Printf("Error creating resources: %s\n", provisioningErr)
 					return
 				} else {
-					fmt.Println("Resource deletion complete.")
+					log.Println("Resource deletion complete.")
 					e = apiClient.FinalizeJob(agentToken, job.Id)
 					if e != nil {
-						fmt.Printf("Error finalizing job: %s\n", e)
+						log.Printf("Error finalizing job: %s\n", e)
 					} else {
-						fmt.Printf("Finalized job: %s\n", job.Id)
+						log.Printf("Finalized job: %s\n", job.Id)
 					}
 				}
 			}
 
 		} else {
-			fmt.Printf("Pending Job in status %s", job.Status)
+			log.Printf("Pending Job in status %s", job.Status)
 		}
 	}
 }
 
 func onDeploymentReady(definition model.ParticipantDefinition) {
-	fmt.Println("Deployments ready in namespace", definition.ParticipantName, "-> creating data")
+	log.Println("Deployments ready in namespace", definition.ParticipantName, "-> creating data")
 
 	seed.ConnectorData(definition)
 	seed.IdentityHubData(definition)
 	seed.IssuerData(definition)
 
-	fmt.Println("Data seeding complete in namespace", definition.ParticipantName)
+	log.Println("Data seeding complete in namespace", definition.ParticipantName)
 
 }
 
@@ -245,7 +245,7 @@ func seedFulcrumCore(apiClient clients.FulcrumApi) (*string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create service group: %w", err)
 	}
-	fmt.Println("Created service group", serviceGroupId)
+	log.Println("Created service group", serviceGroupId)
 
 	// create agent
 	log.Println("  > creating agent")
@@ -268,9 +268,9 @@ func seedFulcrumCore(apiClient clients.FulcrumApi) (*string, error) {
 	}
 
 	// log information
-	fmt.Println("Created agent ID=", agentId)
-	fmt.Println("Created service type ID=", serviceTypeId)
-	fmt.Println("Created service group ID=", serviceGroupId)
+	log.Println("Created agent ID=", agentId)
+	log.Println("Created service type ID=", serviceTypeId)
+	log.Println("Created service group ID=", serviceGroupId)
 
 	return &token, nil
 }

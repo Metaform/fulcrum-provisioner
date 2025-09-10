@@ -2,10 +2,10 @@ package seed
 
 import (
 	_ "embed"
-	"fmt"
 	"k8s-provisioner/clients/config"
 	clients "k8s-provisioner/clients/management"
 	"k8s-provisioner/internal/model"
+	"log"
 )
 
 // todo: make configurable
@@ -49,31 +49,31 @@ func ConnectorData(definition model.ParticipantDefinition) {
 	for _, asset := range []string{asset1Json, asset2json} {
 		_, err := mgmtApi.CreateAsset(asset)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 
 	}
-	fmt.Println("assets created")
+	log.Println("assets created")
 
 	// create policies
 	for _, policy := range []string{policyDataProcessorJson, policyMembershipJson, policySensitiveDataJson} {
 		_, err := mgmtApi.CreatePolicy(policy)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 	}
-	fmt.Println("policies created")
+	log.Println("policies created")
 
 	// create contract defs
 	for _, cd := range []string{defRequireMembership, defSensitive} {
 		_, err := mgmtApi.CreateContractDefinition(cd)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			return
 		}
 	}
-	fmt.Println("contract definitions created")
+	log.Println("contract definitions created")
 
 }

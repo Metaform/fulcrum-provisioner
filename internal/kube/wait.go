@@ -2,7 +2,7 @@ package kube
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,10 +20,10 @@ func WaitForDeploymentsAsync(
 	deployments []string,
 	callback func(),
 ) {
-	fmt.Println("Waiting for deployments", deployments, "")
+	log.Println("Waiting for deployments", deployments, "")
 	go func() {
 		if err := waitForDeployments(c, ctx, namespace, deployments); err != nil {
-			fmt.Printf("deployment readiness check failed for namespace %s: %v\n", namespace, err)
+			log.Printf("deployment readiness check failed for namespace %s: %v\n", namespace, err)
 			return
 		}
 		callback()
@@ -44,7 +44,7 @@ func waitForDeployments(c client.Client, ctx context.Context, namespace string, 
 		if err := <-errCh; err != nil && firstErr == nil {
 			firstErr = err
 		} else if err == nil {
-			fmt.Println("Deployment", deployment, "ready")
+			log.Println("Deployment", deployment, "ready")
 		}
 	}
 	return firstErr
