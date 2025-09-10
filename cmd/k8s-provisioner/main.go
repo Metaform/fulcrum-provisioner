@@ -31,7 +31,6 @@ import (
 
 type CLI struct {
 	KubeConfig  string `help:"Path to KubeConfig file" env:"KUBECONFIG" default:"~/.kube/config"`
-	Token       string `help:"Fulcrum Core API agent Token" env:"TOKEN"`
 	FulcrumCore string `help:"Fulcrum Core API Host" env:"FULCRUM_CORE"`
 }
 
@@ -82,12 +81,17 @@ func main() {
 	provisioningAgent := provisioner.NewProvisioningAgent(ctx, kubeClient)
 
 	// Start periodic health check
-	if cli.Token == "" {
-		fmt.Printf("No Fulcrum Agent token was supplied, will skip periodic checking")
-	} else if cli.FulcrumCore == "" {
+	if cli.FulcrumCore == "" {
 		fmt.Printf("No Fulcrum Core API endpoint was supplied, will skip periodic checking")
 	} else {
-		apiClient := clients.NewFulcrumApiClient(cli.FulcrumCore, cli.Token)
+		apiClient := clients.NewFulcrumApiClient(cli.FulcrumCore)
+		token, seedError := seedFulcrumCore(apiClient)
+		if seedError != nil {
+			log.Fatalf("Error seeding Fulcrum Core: %s", seedError)
+		}
+		if token == nil {
+			log.Fatalf("Error seeding/fetching fulcrum token: token is nil")
+		}
 
 		go func() {
 			ticker := time.NewTicker(10 * time.Second)
@@ -98,7 +102,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					pollFulcrum(apiClient, provisioningAgent)
+					pollFulcrum(apiClient, *token, provisioningAgent)
 				}
 			}
 		}()
@@ -122,9 +126,9 @@ func main() {
 	_ = app.Shutdown()
 }
 
-func pollFulcrum(apiClient clients.FulcrumApi, agent provisioner.ProvisioningAgent) {
+func pollFulcrum(apiClient clients.FulcrumApi, agentToken string, agent provisioner.ProvisioningAgent) {
 
-	jobs, err := apiClient.GetPendingJobs()
+	jobs, err := apiClient.GetPendingJobs(agentToken)
 	if err != nil {
 		fmt.Printf("Error getting pending jobs: %s\n", err)
 		return
@@ -140,7 +144,7 @@ func pollFulcrum(apiClient clients.FulcrumApi, agent provisioner.ProvisioningAge
 				Did:                   fmt.Sprintf("%v", job.Service.Properties["participantDid"]),
 				KubernetesIngressHost: fmt.Sprintf("%v", job.Service.Properties["kubeHost"]),
 			}
-			e := apiClient.ClaimJob(job.Id)
+			e := apiClient.ClaimJob(agentToken, job.Id)
 			fmt.Printf("Claimed job %s (\"%s\"), Action = %s\n", job.Id, job.Service.Name, job.Action)
 			if e != nil {
 				fmt.Printf("Error claiming job: %s", e)
@@ -148,7 +152,8 @@ func pollFulcrum(apiClient clients.FulcrumApi, agent provisioner.ProvisioningAge
 
 			if job.Action == "Create" {
 				_, provisioningError := agent.CreateResources(def, func(definition model.ParticipantDefinition) {
-					e = apiClient.FinalizeJob(job.Id)
+					onDeploymentReady(definition)
+					e = apiClient.FinalizeJob(agentToken, job.Id)
 					if e != nil {
 						fmt.Printf("Error finalizing job: %s\n", e)
 					} else {
@@ -166,7 +171,7 @@ func pollFulcrum(apiClient clients.FulcrumApi, agent provisioner.ProvisioningAge
 					return
 				} else {
 					fmt.Println("Resource deletion complete.")
-					e = apiClient.FinalizeJob(job.Id)
+					e = apiClient.FinalizeJob(agentToken, job.Id)
 					if e != nil {
 						fmt.Printf("Error finalizing job: %s\n", e)
 					} else {
@@ -182,7 +187,7 @@ func pollFulcrum(apiClient clients.FulcrumApi, agent provisioner.ProvisioningAge
 }
 
 func onDeploymentReady(definition model.ParticipantDefinition) {
-	fmt.Println("Deployments ready in namespace", definition.ParticipantName, "-> seeding data")
+	fmt.Println("Deployments ready in namespace", definition.ParticipantName, "-> creating data")
 
 	seed.ConnectorData(definition)
 	seed.IdentityHubData(definition)
@@ -190,4 +195,82 @@ func onDeploymentReady(definition model.ParticipantDefinition) {
 
 	fmt.Println("Data seeding complete in namespace", definition.ParticipantName)
 
+}
+
+func seedFulcrumCore(apiClient clients.FulcrumApi) (*string, error) {
+
+	log.Println("### Seeding Fulcrum Core ###")
+	// see if a token already exists, if so, get its value and return
+	const tokenName = "Provisioner Access Token"
+	tokens, err := apiClient.ListTokens()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tokens: %w", err)
+	}
+	for _, token := range tokens {
+		if token.Name == tokenName {
+			tokenData, e := apiClient.RegenerateToken(token.Id)
+			if e != nil {
+				return nil, fmt.Errorf("failed to get token data: %w", e)
+			}
+			log.Println("  agent already exists, aborting.")
+			return &tokenData.Value, nil
+		}
+	}
+
+	// seed service type
+	log.Println("  > creating service type")
+
+	serviceTypeId, err := apiClient.CreateServiceType("edc-aio", "EDC All-in-one deployment")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service type: %w", err)
+	}
+
+	//create agent-type
+	log.Println("  > creating agent type")
+	agentTypeId, err := apiClient.CreateAgentType(serviceTypeId, "go-provisioner-agent")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create agent type: %w", err)
+	}
+
+	// create participant
+	log.Println("  > creating participant")
+	participantId, err := apiClient.CreateParticipant("K8S Provisioner Participant")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create participant: %w", err)
+	}
+
+	// create service-group
+	log.Println("  > creating service group")
+	serviceGroupId, err := apiClient.CreateServiceGroup(participantId, "EDC Services Group")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service group: %w", err)
+	}
+	fmt.Println("Created service group", serviceGroupId)
+
+	// create agent
+	log.Println("  > creating agent")
+	agentId, err := apiClient.CreateAgent(model.AgentData{
+		Name:          tokenName,
+		ProviderId:    participantId,
+		AgentTypeId:   agentTypeId,
+		Tags:          []string{"cfm", "edc"},
+		Configuration: make(map[string]interface{}),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create agent: %w", err)
+	}
+
+	// create agent token
+	log.Println("  > creating agent token")
+	token, err := apiClient.CreateAgentToken(agentId, tokenName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create agent token: %w", err)
+	}
+
+	// log information
+	fmt.Println("Created agent ID=", agentId)
+	fmt.Println("Created service type ID=", serviceTypeId)
+	fmt.Println("Created service group ID=", serviceGroupId)
+
+	return &token, nil
 }
