@@ -8,9 +8,7 @@ import (
 	identity "k8s-provisioner/clients/identity"
 	mgmt "k8s-provisioner/clients/management"
 	"k8s-provisioner/internal/model"
-	"net/http"
 	"strings"
-	"time"
 )
 
 //go:embed templates/participant.json
@@ -24,7 +22,7 @@ func IdentityHubData(definition model.ParticipantDefinition) {
 		ApiConfig: config.ApiConfig{
 			BaseUrl:    "http://" + kubernetesHost + "/" + namespace + "/cs/api/identity/v1alpha",
 			ApiKey:     apiKey,
-			HttpClient: http.Client{Timeout: 15 * time.Second},
+			HttpClient: config.CreateHttpClient(),
 		},
 	}
 	ihBaseUrl := fmt.Sprintf("http://identityhub.%s.svc.cluster.local:7082", namespace)
@@ -49,7 +47,7 @@ func IdentityHubData(definition model.ParticipantDefinition) {
 
 	var mgmtApi = mgmt.ManagementApiClient{
 		ApiConfig: config.ApiConfig{
-			HttpClient: http.Client{Timeout: 15 * time.Second},
+			HttpClient: config.CreateHttpClient(),
 			BaseUrl:    "http://" + kubernetesHost + "/" + namespace + "/cp/api/management/v3",
 			ApiKey:     "password",
 		},

@@ -39,7 +39,7 @@ func NewFulcrumApiClient(baseUrl string) FulcrumApi {
 	return &FulcrumApiClient{
 		ApiConfig: config.ApiConfig{
 			ApiKey:     "change-me",
-			HttpClient: http.Client{Timeout: 15 * time.Second},
+			HttpClient: config.CreateHttpClient(),
 			BaseUrl:    baseUrl,
 		},
 	}

@@ -6,8 +6,6 @@ import (
 	"k8s-provisioner/clients/config"
 	clients "k8s-provisioner/clients/management"
 	"k8s-provisioner/internal/model"
-	"net/http"
-	"time"
 )
 
 // todo: make configurable
@@ -43,7 +41,7 @@ func ConnectorData(definition model.ParticipantDefinition) {
 		ApiConfig: config.ApiConfig{
 			BaseUrl:    "http://" + kubernetesHost + "/" + namespace + "/cp/api/management/v3",
 			ApiKey:     "password",
-			HttpClient: http.Client{Timeout: 15 * time.Second},
+			HttpClient: config.CreateHttpClient(),
 		},
 	}
 

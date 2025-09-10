@@ -5,15 +5,17 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/hashicorp/go-retryablehttp"
 )
 
 type ApiConfig struct {
-	HttpClient http.Client
+	HttpClient *http.Client
 	BaseUrl    string
 	ApiKey     string
 }
 
-func SendRequest(client http.Client, apiKey string, body string, url string) (string, error) {
+func SendRequest(client *http.Client, apiKey string, body string, url string) (string, error) {
 	payload := strings.NewReader(body)
 
 	rq, err := http.NewRequest("POST", url, payload)
@@ -44,4 +46,15 @@ func SendRequest(client http.Client, apiKey string, body string, url string) (st
 		return "", fmt.Errorf("error sending request: %s", resp.Status)
 	}
 	return string(response), nil
+}
+
+var client *retryablehttp.Client
+
+func CreateHttpClient() *http.Client {
+	if client == nil {
+		client = retryablehttp.NewClient()
+		client.RetryMax = 3
+		client.Logger = nil
+	}
+	return client.StandardClient()
 }

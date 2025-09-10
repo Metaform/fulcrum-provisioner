@@ -6,8 +6,6 @@ import (
 	"k8s-provisioner/clients/config"
 	"k8s-provisioner/clients/issuer"
 	"k8s-provisioner/internal/model"
-	"net/http"
-	"time"
 )
 
 func IssuerData(definition model.ParticipantDefinition) {
@@ -18,7 +16,7 @@ func IssuerData(definition model.ParticipantDefinition) {
 		ApiConfig: config.ApiConfig{
 			BaseUrl:    "http://" + kubernetesHost + "/issuer/ad/api/admin/v1alpha/participants/" + issuerB64,
 			ApiKey:     "c3VwZXItdXNlcg==.c3VwZXItc2VjcmV0LWtleQo=",
-			HttpClient: http.Client{Timeout: 15 * time.Second},
+			HttpClient: config.CreateHttpClient(),
 		},
 	}
 
