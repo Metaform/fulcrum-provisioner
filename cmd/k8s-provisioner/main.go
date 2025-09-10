@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"k8s-provisioner/clients/fulcrum"
@@ -10,6 +11,7 @@ import (
 	"k8s-provisioner/internal/provisioner"
 	"k8s-provisioner/internal/seed"
 	"k8s-provisioner/internal/server"
+	"k8s-provisioner/internal/store"
 	"log"
 	"os"
 	"os/signal"
@@ -27,11 +29,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	_ "embed"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+var agentStore store.AgentInfoStore
 
 type CLI struct {
 	KubeConfig  string `help:"Path to KubeConfig file" env:"KUBECONFIG" default:"~/.kube/config"`
 	FulcrumCore string `help:"Fulcrum Core API Host" env:"FULCRUM_CORE"`
+	Postgres    string `help:"Postgres connection string" env:"PG_CONNECTION_STRING"`
 }
 
 func main() {
@@ -41,46 +48,31 @@ func main() {
 	// Create context with cancellation
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	konfig := &rest.Config{}
-	exists := true
-	if cli.KubeConfig == "" {
-		exists = false
-	} else if _, err := os.Stat(cli.KubeConfig); errors.Is(err, os.ErrNotExist) {
-		log.Printf("kubeconfig file %s does not exist, falling back to in-cluster config\n", cli.KubeConfig)
-		exists = false
-	}
-	if exists {
 
-		// Load kubeconfig (or use in-cluster if applicable)
-		log.Println("Load kubeconfig from ", cli.KubeConfig, "")
-		cfg, err := clientcmd.BuildConfigFromFlags("", cli.KubeConfig)
-		if err != nil {
-			log.Fatalf("load kubeconfig: %v", err)
-		}
-		konfig = cfg
-	} else {
-		log.Println("No kubeconfig provided, using in-cluster config", "")
-		cfg, err := rest.InClusterConfig()
-		if err != nil {
-			log.Fatalf("load in-cluster config: %v", err)
-		}
-		konfig = cfg
-	}
-
-	// Scheme with core types
-	// --- Prepare scheme ---
-	scheme := runtime.NewScheme()
-	_ = appsv1.AddToScheme(scheme)
-	_ = corev1.AddToScheme(scheme)
-	_ = networkingv1.AddToScheme(scheme)
-
-	kubeClient, err := client.New(konfig, client.Options{Scheme: scheme})
+	kubeClient, err := initializeKubeClient(cli.KubeConfig)
 	if err != nil {
-		log.Fatalf("create client: %v", err)
+		log.Fatalf("create kube client: %v", err)
 	}
 	provisioningAgent := provisioner.NewProvisioningAgent(ctx, kubeClient)
 
-	// Start periodic health check
+	db, err := sql.Open("pgx", cli.Postgres)
+	if err != nil {
+		log.Fatalf("open database: %v", err)
+	}
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	// Ensure DB schema exists before using the store
+	if err := store.EnsureSchema(ctx, db); err != nil {
+		log.Fatalf("ensure db schema: %v", err)
+	}
+
+	agentStore = store.NewPostgresAgentInfoStore(db)
+	defer func(db *sql.DB) {
+		_ = db.Close()
+	}(db)
+
+	// Start a periodic health check
 	if cli.FulcrumCore == "" {
 		log.Printf("No Fulcrum Core API endpoint was supplied, will skip periodic checking")
 	} else {
@@ -124,6 +116,45 @@ func main() {
 	<-ctx.Done()
 	log.Println("\nGracefully shutting down...")
 	_ = app.Shutdown()
+}
+
+func initializeKubeClient(kubeConfigPath string) (client.Client, error) {
+	exists := true
+	konfig := &rest.Config{}
+
+	if kubeConfigPath == "" {
+		exists = false
+	} else if _, err := os.Stat(kubeConfigPath); errors.Is(err, os.ErrNotExist) {
+		log.Printf("kubeconfig file %s does not exist, falling back to in-cluster config\n", kubeConfigPath)
+		exists = false
+	}
+	if exists {
+
+		// Load kubeconfig (or use in-cluster if applicable)
+		log.Println("Load kubeconfig from ", kubeConfigPath, "")
+		cfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+		if err != nil {
+			log.Fatalf("load kubeconfig: %v", err)
+		}
+		konfig = cfg
+	} else {
+		log.Println("No kubeconfig provided, using in-cluster config", "")
+		cfg, err := rest.InClusterConfig()
+		if err != nil {
+			log.Fatalf("load in-cluster config: %v", err)
+		}
+		konfig = cfg
+	}
+
+	// Scheme with core types
+	// --- Prepare scheme ---
+	scheme := runtime.NewScheme()
+	_ = appsv1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	_ = networkingv1.AddToScheme(scheme)
+
+	kubeClient, err := client.New(konfig, client.Options{Scheme: scheme})
+	return kubeClient, err
 }
 
 func pollFulcrum(apiClient clients.FulcrumApi, agentToken string, agent provisioner.ProvisioningAgent) {
@@ -198,79 +229,81 @@ func onDeploymentReady(definition model.ParticipantDefinition) {
 }
 
 func seedFulcrumCore(apiClient clients.FulcrumApi) (*string, error) {
-
-	log.Println("### Seeding Fulcrum Core ###")
-	// see if a token already exists, if so, get its value and return
+	const agentName = "EDC Provisioner Agent"
 	const tokenName = "Provisioner Access Token"
-	tokens, err := apiClient.ListTokens()
+
+	ctx := context.Background()
+	ai, err := agentStore.GetByName(ctx, agentName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list tokens: %w", err)
-	}
-	for _, token := range tokens {
-		if token.Name == tokenName {
-			tokenData, e := apiClient.RegenerateToken(token.Id)
-			if e != nil {
-				return nil, fmt.Errorf("failed to get token data: %w", e)
+		if errors.Is(err, store.ErrNotFound) {
+			//seed basic fulcrum data
+			err = createAgent(agentName, apiClient, &ai)
+			if err != nil {
+				return nil, err
 			}
-			log.Println("  agent already exists, aborting.")
-			return &tokenData.Value, nil
+		} else {
+			return nil, err
 		}
 	}
+	// create agent token
+	log.Println("  > creating agent token")
+	token, e := apiClient.CreateAgentToken(ai.AgentId, tokenName)
+	if e != nil {
+		return nil, fmt.Errorf("failed to create agent token: %w", e)
+	}
+	ai.TokenId = token.Id
+	return &token.Value, agentStore.Upsert(ctx, ai)
 
+}
+
+func createAgent(name string, apiClient clients.FulcrumApi, receptacle *store.AgentInfo) error {
+	log.Println("### Seeding Fulcrum Core ###")
 	// seed service type
 	log.Println("  > creating service type")
 
 	serviceTypeId, err := apiClient.CreateServiceType("edc-aio", "EDC All-in-one deployment")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create service type: %w", err)
+		return fmt.Errorf("failed to create service type: %w", err)
 	}
 
 	//create agent-type
 	log.Println("  > creating agent type")
 	agentTypeId, err := apiClient.CreateAgentType(serviceTypeId, "go-provisioner-agent")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create agent type: %w", err)
+		return fmt.Errorf("failed to create agent type: %w", err)
 	}
 
 	// create participant
 	log.Println("  > creating participant")
 	participantId, err := apiClient.CreateParticipant("K8S Provisioner Participant")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create participant: %w", err)
+		return fmt.Errorf("failed to create participant: %w", err)
 	}
 
 	// create service-group
 	log.Println("  > creating service group")
 	serviceGroupId, err := apiClient.CreateServiceGroup(participantId, "EDC Services Group")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create service group: %w", err)
+		return fmt.Errorf("failed to create service group: %w", err)
 	}
 	log.Println("Created service group", serviceGroupId)
 
 	// create agent
 	log.Println("  > creating agent")
 	agentId, err := apiClient.CreateAgent(model.AgentData{
-		Name:          tokenName,
+		Name:          name,
 		ProviderId:    participantId,
 		AgentTypeId:   agentTypeId,
 		Tags:          []string{"cfm", "edc"},
 		Configuration: make(map[string]interface{}),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create agent: %w", err)
+		return fmt.Errorf("failed to create agent: %w", err)
 	}
 
-	// create agent token
-	log.Println("  > creating agent token")
-	token, err := apiClient.CreateAgentToken(agentId, tokenName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create agent token: %w", err)
-	}
-
-	// log information
-	log.Println("Created agent ID=", agentId)
-	log.Println("Created service type ID=", serviceTypeId)
-	log.Println("Created service group ID=", serviceGroupId)
-
-	return &token, nil
+	receptacle.AgentId = agentId
+	receptacle.ProviderId = participantId
+	receptacle.AgentTypeId = agentTypeId
+	receptacle.Name = name
+	return nil
 }
