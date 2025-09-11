@@ -6,7 +6,6 @@ type AgentInfo struct {
 	AgentId        string
 	ProviderId     string
 	AgentTypeId    string
-	TokenId        string
 	Name           string
 	ServiceTypeId  string
 	ServiceGroupId string

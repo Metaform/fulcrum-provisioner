@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"k8s-provisioner/clients/fulcrum"
@@ -245,15 +246,16 @@ func seedFulcrumCore(apiClient clients.FulcrumApi) (*string, error) {
 			return nil, err
 		}
 	}
-	// create agent token
 	log.Println("  > creating agent token")
 	token, e := apiClient.CreateAgentToken(ai.AgentId, tokenName)
 	if e != nil {
 		return nil, fmt.Errorf("failed to create agent token: %w", e)
 	}
-	ai.TokenId = token.Id
-	return &token.Value, agentStore.Upsert(ctx, ai)
 
+	j, _ := json.MarshalIndent(ai, "", "  ")
+	log.Printf(" > Fulcrum Core data: \n%s\n", j)
+
+	return &token.Value, agentStore.Upsert(ctx, ai)
 }
 
 func createAgent(name string, apiClient clients.FulcrumApi, receptacle *store.AgentInfo) error {
@@ -286,7 +288,6 @@ func createAgent(name string, apiClient clients.FulcrumApi, receptacle *store.Ag
 	if err != nil {
 		return fmt.Errorf("failed to create service group: %w", err)
 	}
-	log.Println("Created service group", serviceGroupId)
 
 	// create agent
 	log.Println("  > creating agent")
