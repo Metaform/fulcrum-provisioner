@@ -165,7 +165,7 @@ spec:
     spec:
       containers:
         - name: controlplane
-          image: ghcr.io/paullatzelsperger/minimumviabledataspace/controlplane:latest
+          image: ghcr.io/paullatzelsperger/minimumviabledataspace/controlplane:0.15.0
           imagePullPolicy: Always
           envFrom:
             - configMapRef:
@@ -295,7 +295,7 @@ spec:
     spec:
       containers:
         - name: dataplane
-          image: ghcr.io/paullatzelsperger/minimumviabledataspace/dataplane:latest
+          image: ghcr.io/paullatzelsperger/minimumviabledataspace/dataplane:0.15.0
           imagePullPolicy: Always
           envFrom:
             - configMapRef:

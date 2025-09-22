@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: identityhub
-          image: ghcr.io/paullatzelsperger/minimumviabledataspace/identity-hub:latest
+          image: ghcr.io/paullatzelsperger/minimumviabledataspace/identity-hub:0.15.0
           imagePullPolicy: Always
           envFrom:
             - configMapRef:
