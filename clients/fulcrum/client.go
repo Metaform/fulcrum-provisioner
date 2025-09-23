@@ -22,9 +22,10 @@ type FulcrumApi interface {
 	CreateParticipant(name string) (string, error)
 	CreateServiceGroup(providerId string, name string) (string, error)
 	CreateAgent(agentData model.AgentData) (string, error)
-	CreateAgentToken(agentId string, tokenName string) (string, error)
+	CreateAgentToken(agentId string, tokenName string) (*model.TokenData, error)
 	ListTokens() ([]model.TokenInformation, error)
 	RegenerateToken(tokenId string) (*model.TokenData, error)
+
 	// these functions are invoked by the provisioner to get and process jobs
 	GetPendingJobs(agentToken string) ([]model.PendingJob, error)
 	ClaimJob(agentToken string, jobId string) error
@@ -161,7 +162,7 @@ func (f *FulcrumApiClient) CreateAgent(agentData model.AgentData) (string, error
 	return r.Id, nil
 }
 
-func (f *FulcrumApiClient) CreateAgentToken(agentId string, tokenName string) (string, error) {
+func (f *FulcrumApiClient) CreateAgentToken(agentId string, tokenName string) (*model.TokenData, error) {
 	body := `{
 		"scopeId": "` + agentId + `",
 		"name": "` + tokenName + `",
@@ -170,19 +171,19 @@ func (f *FulcrumApiClient) CreateAgentToken(agentId string, tokenName string) (s
 	}`
 	rq, err := http.NewRequest("POST", f.BaseUrl+"/api/v1/tokens", strings.NewReader(body))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response, err := f.requestWithResponse(rq)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	r := model.TokenData{}
 	err = json.Unmarshal(response, &r)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return r.Value, nil
+	return &r, nil
 }
 
 func (f *FulcrumApiClient) ListTokens() ([]model.TokenInformation, error) {
